@@ -15,9 +15,12 @@ model Task {
   dueDate     DateTime?
   completed   Boolean  @default(false)
   description String   @default("")
+  userId      String?
+  user        User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  @@index([userId, completed, dueDate])
   @@index([completed, dueDate])
   @@index([category])
 }
@@ -28,8 +31,32 @@ model Note {
   content   String   @default("")
   color     String   @default("butter")
   pinned    Boolean  @default(false)
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@index([userId, pinned, updatedAt])
   @@index([pinned, updatedAt])
+}
+
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  passwordHash String
+  tasks        Task[]
+  notes        Note[]
+  sessions     Session[]
+  createdAt    DateTime  @default(now())
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  tokenHash String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId, expiresAt])
 }

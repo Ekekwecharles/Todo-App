@@ -5,14 +5,14 @@ A small, private-feeling workspace for tasks and notes. Built with Next.js, Pris
 ## Run locally
 
 1. Install [Docker Desktop](https://www.docker.com/products/docker-desktop/).
-2. Copy `.env.example` to `.env`. Change `APP_PASSWORD` before sharing the app.
+2. Copy `.env.example` to `.env` and set `DATABASE_URL` to your database connection string.
 3. Start the app and local PostgreSQL database:
 
    ```sh
    docker compose up --build
    ```
 
-4. Open [http://localhost:3000](http://localhost:3000) and sign in with your `APP_PASSWORD`.
+4. Open [http://localhost:3000](http://localhost:3000) and create an account. Each account has its own private tasks and notes.
 
 The first run also creates the task and note tables. PostgreSQL stores its data in the `daybook_data` Docker volume; `docker compose down` keeps it, while `docker compose down -v` removes it.
 
@@ -29,17 +29,18 @@ npm run dev
 Vercel runs the Next.js app; it does not run the PostgreSQL Docker container. Create a hosted PostgreSQL database with [Neon](https://neon.tech/) or [Supabase](https://supabase.com/), then:
 
 1. Push this project to a GitHub repository and import that repository in Vercel.
-2. In the Vercel project settings, add `DATABASE_URL` using your hosted database's connection string. Add `APP_PASSWORD` with a strong, private password.
-3. Before the first production deployment, set the same hosted `DATABASE_URL` locally and run `npm run db:push` once. This creates the database tables. Keep `APP_PASSWORD` out of the database setup command.
-4. Deploy. Prisma Client is generated automatically on install.
+2. In the Vercel project settings, add `DATABASE_URL` using your hosted database's connection string.
+3. Before the first production deployment, set the rotated hosted `DATABASE_URL` locally and run `npm run db:push` once. This creates the tables and account schema.
+4. Deploy. Prisma Client is generated automatically on install. People can then create individual accounts and sign in.
 
-The application does not require a Docker image or `vercel.json` on Vercel. Every task and note API endpoint checks the optional password-protected session. If `APP_PASSWORD` is unset, the workspace is open; set it for any internet-accessible deployment.
+The application does not require a Docker image or `vercel.json` on Vercel. Passwords are stored as scrypt hashes; sessions use random, HTTP-only cookies. Every task and note API endpoint filters by the signed-in account. Email addresses are used for sign-in; the app does not send email.
+
+On a database that already contains shared tasks or notes, the first account created claims those existing ownerless records. Later accounts start with their own separate workspace.
 
 ## Environment variables
 
 | Variable       | Purpose                                                                               |
 | -------------- | ------------------------------------------------------------------------------------- |
 | `DATABASE_URL` | PostgreSQL connection string used by Prisma. Use the hosted provider's URL on Vercel. |
-| `APP_PASSWORD` | Optional shared password. Set this before publishing the app publicly.                |
 
 The Docker Compose file supplies an isolated, local-only database connection to the app container. It never uses that local database when running on Vercel.

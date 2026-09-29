@@ -1300,9 +1300,25 @@ button:disabled {
   color: var(--ink);
   font-size: 12px;
 }
+.access-card > input + .sr-only + input {
+  margin-top: 9px;
+}
 .access-submit {
   width: 100%;
   margin-top: 12px;
+}
+.auth-mode-toggle {
+  align-self: center;
+  margin-top: 16px;
+  padding: 4px;
+  border: 0;
+  background: transparent;
+  color: var(--forest);
+  font-size: 10px;
+  cursor: pointer;
+}
+.auth-mode-toggle:hover {
+  text-decoration: underline;
 }
 .form-error {
   margin: 8px 0 0;
@@ -1619,5 +1635,136 @@ button:disabled {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+  }
+}
+
+/* Keep the interface airy while making everyday text easier to scan. */
+body {
+  font-size: 15px;
+}
+.daybook-shell :is(.brand-lockup, .note-title-input) {
+  font-size: 24px;
+}
+.daybook-shell .welcome-row h1 {
+  font-size: 35px;
+}
+.daybook-shell .section-heading h2,
+.daybook-shell .daily-copy p {
+  font-size: 21px;
+}
+.daybook-shell
+  :is(
+    .sidebar-compose > span:nth-child(2),
+    .shortcut-label,
+    .nav-item > span:nth-child(2),
+    .category-link,
+    .welcome-subtitle,
+    .quick-add > input,
+    .task-main > strong,
+    .note-dialog textarea,
+    .access-card > input
+  ) {
+  font-size: 13px;
+}
+.daybook-shell
+  :is(
+    .nav-count,
+    .category-total,
+    .breadcrumb,
+    .search-box input,
+    .new-button,
+    .primary-button,
+    .status-banner,
+    .section-total,
+    .task-description,
+    .note-card-content > span,
+    .empty-state > span:not(.empty-icon):not(.loading-inline),
+    .text-button,
+    .progress-copy small,
+    .loading-screen,
+    .access-card > p:not(.form-error)
+  ) {
+  font-size: 12px;
+}
+.daybook-shell
+  :is(
+    .profile-info strong,
+    .sign-out-button,
+    .daily-footnote,
+    .details-toggle,
+    .quick-add-details select,
+    .quick-add-details input,
+    .add-another,
+    .empty-state > span:not(.empty-icon):not(.loading-inline),
+    .note-card-bottom,
+    .workspace-footer,
+    .search-box kbd,
+    .quick-add-details label,
+    .form-error,
+    .auth-mode-toggle
+  ) {
+  font-size: 11px;
+}
+.daybook-shell
+  :is(
+    .sidebar-label,
+    .profile-info small,
+    .category-label,
+    .eyebrow,
+    .section-kicker,
+    .quick-add-details label,
+    .task-category,
+    .task-date,
+    .priority-label,
+    .note-kind,
+    .note-card-content > span,
+    .note-dialog .section-kicker,
+    .note-save
+  ) {
+  font-size: 10px;
+}
+.daybook-shell .welcome-row h1 {
+  line-height: 1.2;
+}
+
+@media (max-width: 760px) {
+  .daybook-shell .welcome-row h1 {
+    font-size: 30px;
+  }
+  .daybook-shell .welcome-subtitle {
+    font-size: 12px;
+  }
+  .daybook-shell .new-button {
+    font-size: 11px;
+  }
+  .daybook-shell .daily-copy p {
+    font-size: 17px;
+  }
+  .daybook-shell .daily-footnote,
+  .daybook-shell .mobile-nav-item span,
+  .daybook-shell .note-card-content > span {
+    font-size: 10px;
+  }
+  .daybook-shell .workspace-footer {
+    font-size: 9px;
+  }
+}
+
+@media (max-width: 420px) {
+  .daybook-shell .welcome-row h1 {
+    font-size: 25px;
+  }
+  .daybook-shell .welcome-subtitle,
+  .daybook-shell .daily-footnote {
+    font-size: 10px;
+  }
+  .daybook-shell .daily-copy p {
+    font-size: 15px;
+  }
+  .daybook-shell .progress-copy span {
+    font-size: 8px;
+  }
+  .daybook-shell .note-card-content > span {
+    font-size: 11px;
   }
 }

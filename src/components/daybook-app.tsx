@@ -150,7 +150,9 @@ export default function DaybookApp() {
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [authorized, setAuthorized] = useState(false);
-  const [protectedApp, setProtectedApp] = useState(false);
+  const [accountEmail, setAccountEmail] = useState("");
+  const [authMode, setAuthMode] = useState<"register" | "login">("register");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
   const [saving, setSaving] = useState(false);
@@ -170,9 +172,10 @@ export default function DaybookApp() {
     setMessage("");
     try {
       const authResponse = await fetch("/api/auth", { cache: "no-store" });
+      if (!authResponse.ok) throw new Error(await responseError(authResponse));
       const auth = await authResponse.json();
-      setProtectedApp(Boolean(auth.protected));
       setAuthorized(Boolean(auth.authenticated));
+      setAccountEmail(auth.email ?? "");
       if (!auth.authenticated) return;
 
       const [taskResponse, noteResponse] = await Promise.all([
@@ -258,7 +261,7 @@ export default function DaybookApp() {
     );
   }, [notes, search]);
 
-  async function submitPassword(event: FormEvent<HTMLFormElement>) {
+  async function submitCredentials(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSaving(true);
     setMessage("");
@@ -266,11 +269,13 @@ export default function DaybookApp() {
       const response = await fetch("/api/auth", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password }),
+        body: JSON.stringify({ email, password, mode: authMode }),
       });
       if (!response.ok) throw new Error(await responseError(response));
+      const account = await response.json();
       setPassword("");
       setAuthorized(true);
+      setAccountEmail(account.email);
       await loadWorkspace();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Couldn't sign in.");
@@ -408,6 +413,9 @@ export default function DaybookApp() {
   async function signOut() {
     await fetch("/api/auth", { method: "DELETE" });
     setAuthorized(false);
+    setAccountEmail("");
+    setTasks([]);
+    setNotes([]);
   }
 
   const counts = {
@@ -449,10 +457,10 @@ export default function DaybookApp() {
     );
   }
 
-  if (protectedApp && !authorized) {
+  if (!authorized) {
     return (
       <main className={`access-screen ${theme}`}>
-        <form className="access-card" onSubmit={submitPassword}>
+        <form className="access-card" onSubmit={submitCredentials}>
           <span className="brand-lockup">
             <span className="brand-mark">
               <Feather size={19} />
@@ -460,16 +468,44 @@ export default function DaybookApp() {
             <span>daybook</span>
           </span>
           <span className="eyebrow">A LITTLE SPACE OF YOUR OWN</span>
-          <h1>Your day, in good hands.</h1>
-          <p>This private daybook is ready when you are.</p>
-          <label className="sr-only" htmlFor="app-password">
+          <h1>
+            {authMode === "register"
+              ? "A daybook of your own."
+              : "Welcome back."}
+          </h1>
+          <p>
+            {authMode === "register"
+              ? "Create an account for your own private tasks and notes."
+              : "Sign in to pick up where you left off."}
+          </p>
+          <label className="sr-only" htmlFor="account-email">
+            Email address
+          </label>
+          <input
+            id="account-email"
+            type="email"
+            autoComplete="email"
+            placeholder="Email address"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            required
+          />
+          <label className="sr-only" htmlFor="account-password">
             Password
           </label>
           <input
-            id="app-password"
+            id="account-password"
             type="password"
-            autoComplete="current-password"
-            placeholder="Enter your password"
+            autoComplete={
+              authMode === "register" ? "new-password" : "current-password"
+            }
+            minLength={authMode === "register" ? 4 : undefined}
+            maxLength={128}
+            placeholder={
+              authMode === "register"
+                ? "Create a password (4+ characters)"
+                : "Password"
+            }
             value={password}
             onChange={(event) => setPassword(event.target.value)}
             required
@@ -481,12 +517,31 @@ export default function DaybookApp() {
             disabled={saving}
           >
             {saving ? (
-              "Opening…"
+              authMode === "register" ? (
+                "Creating account…"
+              ) : (
+                "Signing in…"
+              )
             ) : (
               <>
-                Open my daybook <ArrowRight size={16} />
+                {authMode === "register" ? "Create my daybook" : "Sign in"}{" "}
+                <ArrowRight size={16} />
               </>
             )}
+          </button>
+          <button
+            className="auth-mode-toggle"
+            type="button"
+            onClick={() => {
+              setAuthMode((current) =>
+                current === "register" ? "login" : "register",
+              );
+              setMessage("");
+            }}
+          >
+            {authMode === "register"
+              ? "Already have an account? Sign in"
+              : "New to Daybook? Create an account"}
           </button>
         </form>
       </main>
@@ -579,18 +634,16 @@ export default function DaybookApp() {
             <p>A gentle reminder</p>
             <span>You don’t have to do it all. Just the next thing.</span>
           </div>
-          {protectedApp && (
-            <button className="sign-out-button" onClick={signOut}>
-              <LogOut size={15} />
-              Lock daybook
-            </button>
-          )}
+          <button className="sign-out-button" onClick={signOut}>
+            <LogOut size={15} />
+            Sign out
+          </button>
           <div className="profile-row">
             <span className="profile-avatar">
               <Feather size={15} />
             </span>
             <span className="profile-info">
-              <strong>Your daybook</strong>
+              <strong>{accountEmail || "Your daybook"}</strong>
               <small>A place to begin again</small>
             </span>
             <span className="profile-status" title="Workspace ready" />

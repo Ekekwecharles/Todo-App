@@ -28,7 +28,6 @@ services:
         condition: service_completed_successfully
     environment:
       DATABASE_URL: postgresql://daybook:daybook@database:5432/daybook?schema=public
-      APP_PASSWORD: ${APP_PASSWORD:-}
       NODE_ENV: production
       HOSTNAME: "0.0.0.0"
     ports:

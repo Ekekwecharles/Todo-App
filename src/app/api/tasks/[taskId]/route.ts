@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { isAuthorized } from "@/lib/access";
+import { authorizeRequest } from "@/lib/access";
 import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
@@ -7,8 +7,8 @@ export const runtime = "nodejs";
 type RouteContext = { params: Promise<{ taskId: string }> };
 
 export async function PATCH(request: Request, context: RouteContext) {
-  if (!(await isAuthorized()))
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const access = await authorizeRequest();
+  if (!access.user) return access.response;
 
   const body = await request.json().catch(() => null);
   const data: {
@@ -40,7 +40,16 @@ export async function PATCH(request: Request, context: RouteContext) {
 
   try {
     const { taskId } = await context.params;
-    const task = await prisma.task.update({ where: { id: taskId }, data });
+    const result = await prisma.task.updateMany({
+      where: { id: taskId, userId: access.user.id },
+      data,
+    });
+    if (result.count === 0) {
+      return NextResponse.json({ error: "Task not found." }, { status: 404 });
+    }
+    const task = await prisma.task.findFirst({
+      where: { id: taskId, userId: access.user.id },
+    });
     return NextResponse.json(task);
   } catch {
     return NextResponse.json(
@@ -51,12 +60,17 @@ export async function PATCH(request: Request, context: RouteContext) {
 }
 
 export async function DELETE(_request: Request, context: RouteContext) {
-  if (!(await isAuthorized()))
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const access = await authorizeRequest();
+  if (!access.user) return access.response;
 
   try {
     const { taskId } = await context.params;
-    await prisma.task.delete({ where: { id: taskId } });
+    const result = await prisma.task.deleteMany({
+      where: { id: taskId, userId: access.user.id },
+    });
+    if (result.count === 0) {
+      return NextResponse.json({ error: "Task not found." }, { status: 404 });
+    }
     return NextResponse.json({ deleted: true });
   } catch {
     return NextResponse.json(

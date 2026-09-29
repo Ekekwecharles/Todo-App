@@ -1,15 +1,16 @@
 import { NextResponse } from "next/server";
-import { isAuthorized } from "@/lib/access";
+import { authorizeRequest } from "@/lib/access";
 import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
 
 export async function GET() {
-  if (!(await isAuthorized()))
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const access = await authorizeRequest();
+  if (!access.user) return access.response;
 
   try {
     const notes = await prisma.note.findMany({
+      where: { userId: access.user.id },
       orderBy: [{ pinned: "desc" }, { updatedAt: "desc" }],
     });
     return NextResponse.json(notes);
@@ -22,8 +23,8 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  if (!(await isAuthorized()))
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const access = await authorizeRequest();
+  if (!access.user) return access.response;
 
   const body = await request.json().catch(() => null);
   if (
@@ -40,6 +41,7 @@ export async function POST(request: Request) {
   try {
     const note = await prisma.note.create({
       data: {
+        userId: access.user.id,
         title: body.title.trim(),
         content:
           typeof body.content === "string" ? body.content.slice(0, 5000) : "",

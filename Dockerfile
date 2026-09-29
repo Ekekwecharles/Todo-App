@@ -14,7 +14,7 @@ COPY --from=dependencies /app/node_modules ./node_modules
 COPY prisma ./prisma
 ENV DATABASE_URL=postgresql://daybook:daybook@database:5432/daybook?schema=public
 RUN npx prisma generate
-CMD ["./node_modules/.bin/prisma", "db", "push"]
+ENTRYPOINT ["./node_modules/.bin/prisma", "db", "push"]
 
 FROM base AS builder
 COPY --from=dependencies /app/node_modules ./node_modules

@@ -1,15 +1,16 @@
 import { NextResponse } from "next/server";
-import { isAuthorized } from "@/lib/access";
+import { authorizeRequest } from "@/lib/access";
 import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
 
 export async function GET() {
-  if (!(await isAuthorized()))
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const access = await authorizeRequest();
+  if (!access.user) return access.response;
 
   try {
     const tasks = await prisma.task.findMany({
+      where: { userId: access.user.id },
       orderBy: [
         { completed: "asc" },
         { dueDate: "asc" },
@@ -26,8 +27,8 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  if (!(await isAuthorized()))
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const access = await authorizeRequest();
+  if (!access.user) return access.response;
 
   const body = await request.json().catch(() => null);
   if (
@@ -44,6 +45,7 @@ export async function POST(request: Request) {
   try {
     const task = await prisma.task.create({
       data: {
+        userId: access.user.id,
         title: body.title.trim(),
         category:
           typeof body.category === "string"
