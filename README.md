@@ -12,7 +12,7 @@ A small, private-feeling workspace for tasks and notes. Built with Next.js, Pris
    docker compose up --build
    ```
 
-4. Open [http://localhost:3000](http://localhost:3000) and create an account. Each account has its own private tasks and notes.
+4. Open [http://localhost:3000](http://localhost:3000) and create an account. Each account has its own private tasks and notes, or continue without an account to save tasks and notes in that browser's local storage.
 
 The first run also creates the task and note tables. PostgreSQL stores its data in the `daybook_data` Docker volume; `docker compose down` keeps it, while `docker compose down -v` removes it.
 
@@ -34,6 +34,8 @@ Vercel runs the Next.js app; it does not run the PostgreSQL Docker container. Cr
 4. Deploy. Prisma Client is generated automatically on install. People can then create individual accounts and sign in.
 
 The application does not require a Docker image or `vercel.json` on Vercel. Passwords are stored as scrypt hashes; sessions use random, HTTP-only cookies. Every task and note API endpoint filters by the signed-in account. Email addresses are used for sign-in; the app does not send email.
+
+Guest workspaces are separate from accounts and never use the database. Their data stays in the current browser's local storage, does not sync between devices, and remains there if the user exits guest mode.
 
 On a database that already contains shared tasks or notes, the first account created claims those existing ownerless records. Later accounts start with their own separate workspace.
 

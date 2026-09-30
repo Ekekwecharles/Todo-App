@@ -12,6 +12,7 @@ import {
   Feather,
   FileText,
   Flag,
+  HardDrive,
   LayoutGrid,
   LogOut,
   Moon,
@@ -21,6 +22,7 @@ import {
   Sparkles,
   Sun,
   Trash2,
+  UserRoundPlus,
   X,
 } from "lucide-react";
 import {
@@ -32,25 +34,15 @@ import {
   useState,
   useSyncExternalStore,
 } from "react";
+import {
+  readGuestWorkspace,
+  WORKSPACE_MODE_KEY,
+  writeGuestWorkspace,
+} from "@/lib/guest-storage";
+import type { GuestNote, GuestTask } from "@/lib/guest-storage";
 
-type Task = {
-  id: string;
-  title: string;
-  category: string;
-  priority: string;
-  dueDate: string | null;
-  completed: boolean;
-  description: string;
-};
-
-type Note = {
-  id: string;
-  title: string;
-  content: string;
-  color: string;
-  pinned: boolean;
-  updatedAt: string;
-};
+type Task = GuestTask;
+type Note = GuestNote;
 
 type NoteDraft = {
   id: string | null;
@@ -150,6 +142,7 @@ export default function DaybookApp() {
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [authorized, setAuthorized] = useState(false);
+  const [guestMode, setGuestMode] = useState(false);
   const [accountEmail, setAccountEmail] = useState("");
   const [authMode, setAuthMode] = useState<"register" | "login">("register");
   const [email, setEmail] = useState("");
@@ -167,45 +160,75 @@ export default function DaybookApp() {
   const [now, setNow] = useState<Date | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
 
-  const loadWorkspace = useCallback(async () => {
-    setLoading(true);
-    setMessage("");
-    try {
-      const authResponse = await fetch("/api/auth", { cache: "no-store" });
-      if (!authResponse.ok) throw new Error(await responseError(authResponse));
-      const auth = await authResponse.json();
-      setAuthorized(Boolean(auth.authenticated));
-      setAccountEmail(auth.email ?? "");
-      if (!auth.authenticated) return;
+  const loadWorkspace = useCallback(
+    async (requestedMode: "auto" | "account" | "guest" = "auto") => {
+      setLoading(true);
+      setMessage("");
+      try {
+        const useGuestMode =
+          requestedMode === "guest" ||
+          (requestedMode === "auto" &&
+            window.localStorage.getItem(WORKSPACE_MODE_KEY) === "guest");
 
-      const [taskResponse, noteResponse] = await Promise.all([
-        fetch("/api/tasks", { cache: "no-store" }),
-        fetch("/api/notes", { cache: "no-store" }),
-      ]);
+        if (useGuestMode) {
+          const workspace = readGuestWorkspace();
+          setGuestMode(true);
+          setAuthorized(false);
+          setAccountEmail("");
+          setTasks(workspace.tasks);
+          setNotes(workspace.notes);
+          return;
+        }
 
-      if (taskResponse.status === 401 || noteResponse.status === 401) {
+        if (requestedMode === "account") {
+          window.localStorage.setItem(WORKSPACE_MODE_KEY, "account");
+        }
+        setGuestMode(false);
         setAuthorized(false);
-        return;
-      }
-      if (!taskResponse.ok) throw new Error(await responseError(taskResponse));
-      if (!noteResponse.ok) throw new Error(await responseError(noteResponse));
+        setAccountEmail("");
+        setTasks([]);
+        setNotes([]);
 
-      const [taskData, noteData] = await Promise.all([
-        taskResponse.json(),
-        noteResponse.json(),
-      ]);
-      setTasks(taskData);
-      setNotes(noteData);
-    } catch (error) {
-      setMessage(
-        error instanceof Error
-          ? error.message
-          : "Couldn't connect to the workspace.",
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+        const authResponse = await fetch("/api/auth", { cache: "no-store" });
+        if (!authResponse.ok)
+          throw new Error(await responseError(authResponse));
+        const auth = await authResponse.json();
+        setAuthorized(Boolean(auth.authenticated));
+        setAccountEmail(auth.email ?? "");
+        if (!auth.authenticated) return;
+
+        const [taskResponse, noteResponse] = await Promise.all([
+          fetch("/api/tasks", { cache: "no-store" }),
+          fetch("/api/notes", { cache: "no-store" }),
+        ]);
+
+        if (taskResponse.status === 401 || noteResponse.status === 401) {
+          setAuthorized(false);
+          return;
+        }
+        if (!taskResponse.ok)
+          throw new Error(await responseError(taskResponse));
+        if (!noteResponse.ok)
+          throw new Error(await responseError(noteResponse));
+
+        const [taskData, noteData] = await Promise.all([
+          taskResponse.json(),
+          noteResponse.json(),
+        ]);
+        setTasks(taskData);
+        setNotes(noteData);
+      } catch (error) {
+        setMessage(
+          error instanceof Error
+            ? error.message
+            : "Couldn't connect to the workspace.",
+        );
+      } finally {
+        setLoading(false);
+      }
+    },
+    [],
+  );
 
   useEffect(() => {
     const clock = window.setTimeout(() => setNow(new Date()), 0);
@@ -215,6 +238,10 @@ export default function DaybookApp() {
       window.clearTimeout(workspace);
     };
   }, [loadWorkspace]);
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+  }, [theme]);
 
   useEffect(() => {
     const handleShortcut = (event: KeyboardEvent) => {
@@ -230,9 +257,9 @@ export default function DaybookApp() {
 
   const today = now ? localDay(now) : localDay(new Date());
   const remaining = tasks.filter((task) => !task.completed).length;
-  const completedToday = tasks.filter((task) => task.completed).length;
+  const completedCount = tasks.filter((task) => task.completed).length;
   const completion = tasks.length
-    ? Math.round((completedToday / tasks.length) * 100)
+    ? Math.round((completedCount / tasks.length) * 100)
     : 0;
 
   const visibleTasks = useMemo(() => {
@@ -261,6 +288,28 @@ export default function DaybookApp() {
     );
   }, [notes, search]);
 
+  function saveGuestWorkspace(nextTasks: Task[], nextNotes: Note[]) {
+    try {
+      writeGuestWorkspace({ tasks: nextTasks, notes: nextNotes });
+      return true;
+    } catch (error) {
+      setMessage(
+        error instanceof Error
+          ? error.message
+          : "Your change could not be saved in this browser.",
+      );
+      return false;
+    }
+  }
+
+  function sortNotes(nextNotes: Note[]) {
+    return [...nextNotes].sort(
+      (first, second) =>
+        Number(second.pinned) - Number(first.pinned) ||
+        second.updatedAt.localeCompare(first.updatedAt),
+    );
+  }
+
   async function submitCredentials(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSaving(true);
@@ -274,14 +323,43 @@ export default function DaybookApp() {
       if (!response.ok) throw new Error(await responseError(response));
       const account = await response.json();
       setPassword("");
+      setGuestMode(false);
       setAuthorized(true);
       setAccountEmail(account.email);
-      await loadWorkspace();
+      await loadWorkspace("account");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Couldn't sign in.");
     } finally {
       setSaving(false);
     }
+  }
+
+  async function enterGuestMode() {
+    setSaving(true);
+    setMessage("");
+    try {
+      window.localStorage.setItem(WORKSPACE_MODE_KEY, "guest");
+      await loadWorkspace("guest");
+    } catch (error) {
+      setMessage(
+        error instanceof Error ? error.message : "Couldn't open guest mode.",
+      );
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function switchToAccountAccess() {
+    window.localStorage.setItem(WORKSPACE_MODE_KEY, "account");
+    setAuthMode("register");
+    setEmail("");
+    setPassword("");
+    setMessage("");
+    setGuestMode(false);
+    setAuthorized(false);
+    setAccountEmail("");
+    setTasks([]);
+    setNotes([]);
   }
 
   async function createTask(event: FormEvent<HTMLFormElement>) {
@@ -290,6 +368,28 @@ export default function DaybookApp() {
     setSaving(true);
     setMessage("");
     try {
+      if (guestMode) {
+        const task: Task = {
+          id: crypto.randomUUID(),
+          title: taskTitle.trim(),
+          category: taskCategory,
+          priority: taskPriority,
+          dueDate: taskDue
+            ? new Date(`${taskDue}T12:00:00.000Z`).toISOString()
+            : null,
+          completed: false,
+          description: taskDescription.trim(),
+        };
+        const nextTasks = [task, ...tasks];
+        if (!saveGuestWorkspace(nextTasks, notes)) return;
+        setTasks(nextTasks);
+        setTaskTitle("");
+        setTaskDue("");
+        setTaskDescription("");
+        setShowDetails(false);
+        return;
+      }
+
       const response = await fetch("/api/tasks", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -319,6 +419,14 @@ export default function DaybookApp() {
 
   async function updateTask(task: Task, changes: Partial<Task>) {
     const updated = { ...task, ...changes };
+    if (guestMode) {
+      const nextTasks = tasks.map((item) =>
+        item.id === task.id ? updated : item,
+      );
+      if (saveGuestWorkspace(nextTasks, notes)) setTasks(nextTasks);
+      return;
+    }
+
     setTasks((current) =>
       current.map((item) => (item.id === task.id ? updated : item)),
     );
@@ -344,11 +452,23 @@ export default function DaybookApp() {
   }
 
   async function deleteTask(task: Task) {
-    setTasks((current) => current.filter((item) => item.id !== task.id));
-    const response = await fetch(`/api/tasks/${task.id}`, { method: "DELETE" });
-    if (!response.ok) {
+    const nextTasks = tasks.filter((item) => item.id !== task.id);
+    if (guestMode) {
+      if (saveGuestWorkspace(nextTasks, notes)) setTasks(nextTasks);
+      return;
+    }
+
+    setTasks(nextTasks);
+    try {
+      const response = await fetch(`/api/tasks/${task.id}`, {
+        method: "DELETE",
+      });
+      if (!response.ok) throw new Error(await responseError(response));
+    } catch (error) {
       setTasks((current) => [...current, task]);
-      setMessage(await responseError(response));
+      setMessage(
+        error instanceof Error ? error.message : "Couldn't delete this task.",
+      );
     }
   }
 
@@ -358,6 +478,27 @@ export default function DaybookApp() {
     setSaving(true);
     setMessage("");
     try {
+      if (guestMode) {
+        const existingNote = notes.find((note) => note.id === noteDraft.id);
+        const saved: Note = {
+          id: noteDraft.id ?? crypto.randomUUID(),
+          title: noteDraft.title.trim(),
+          content: noteDraft.content,
+          color: noteDraft.color,
+          pinned: existingNote?.pinned ?? false,
+          updatedAt: new Date().toISOString(),
+        };
+        const nextNotes = sortNotes(
+          noteDraft.id
+            ? notes.map((note) => (note.id === saved.id ? saved : note))
+            : [saved, ...notes],
+        );
+        if (!saveGuestWorkspace(tasks, nextNotes)) return;
+        setNotes(nextNotes);
+        setNoteDraft(null);
+        return;
+      }
+
       const response = await fetch(
         noteDraft.id ? `/api/notes/${noteDraft.id}` : "/api/notes",
         {
@@ -385,34 +526,68 @@ export default function DaybookApp() {
 
   async function togglePin(note: Note) {
     const updated = { ...note, pinned: !note.pinned };
-    setNotes((current) =>
-      current.map((item) => (item.id === note.id ? updated : item)),
+    const nextNotes = sortNotes(
+      notes.map((item) => (item.id === note.id ? updated : item)),
     );
-    const response = await fetch(`/api/notes/${note.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ pinned: updated.pinned }),
-    });
-    if (!response.ok) {
+    if (guestMode) {
+      if (saveGuestWorkspace(tasks, nextNotes)) setNotes(nextNotes);
+      return;
+    }
+
+    setNotes(nextNotes);
+    try {
+      const response = await fetch(`/api/notes/${note.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pinned: updated.pinned }),
+      });
+      if (!response.ok) throw new Error(await responseError(response));
+    } catch (error) {
       setNotes((current) =>
         current.map((item) => (item.id === note.id ? note : item)),
       );
-      setMessage(await responseError(response));
+      setMessage(
+        error instanceof Error ? error.message : "Couldn't update this note.",
+      );
     }
   }
 
   async function deleteNote(note: Note) {
-    setNotes((current) => current.filter((item) => item.id !== note.id));
-    const response = await fetch(`/api/notes/${note.id}`, { method: "DELETE" });
-    if (!response.ok) {
+    const nextNotes = notes.filter((item) => item.id !== note.id);
+    if (guestMode) {
+      if (saveGuestWorkspace(tasks, nextNotes)) setNotes(nextNotes);
+      return;
+    }
+
+    setNotes(nextNotes);
+    try {
+      const response = await fetch(`/api/notes/${note.id}`, {
+        method: "DELETE",
+      });
+      if (!response.ok) throw new Error(await responseError(response));
+    } catch (error) {
       setNotes((current) => [note, ...current]);
-      setMessage(await responseError(response));
+      setMessage(
+        error instanceof Error ? error.message : "Couldn't delete this note.",
+      );
     }
   }
 
   async function signOut() {
-    await fetch("/api/auth", { method: "DELETE" });
+    if (!guestMode) {
+      try {
+        const response = await fetch("/api/auth", { method: "DELETE" });
+        if (!response.ok) throw new Error(await responseError(response));
+      } catch (error) {
+        setMessage(
+          error instanceof Error ? error.message : "Couldn't sign out.",
+        );
+        return;
+      }
+    }
+    window.localStorage.removeItem(WORKSPACE_MODE_KEY);
     setAuthorized(false);
+    setGuestMode(false);
     setAccountEmail("");
     setTasks([]);
     setNotes([]);
@@ -431,7 +606,7 @@ export default function DaybookApp() {
         localDay(new Date(task.dueDate)) > today,
     ).length,
     all: remaining,
-    done: completedToday,
+    done: completedCount,
   };
 
   const navItems: {
@@ -457,7 +632,7 @@ export default function DaybookApp() {
     );
   }
 
-  if (!authorized) {
+  if (!authorized && !guestMode) {
     return (
       <main className={`access-screen ${theme}`}>
         <form className="access-card" onSubmit={submitCredentials}>
@@ -543,6 +718,20 @@ export default function DaybookApp() {
               ? "Already have an account? Sign in"
               : "New to Daybook? Create an account"}
           </button>
+          <span className="auth-divider">
+            <span>OR</span>
+          </span>
+          <button
+            className="guest-mode-button"
+            type="button"
+            onClick={() => void enterGuestMode()}
+            disabled={saving}
+          >
+            <HardDrive size={16} /> Continue without an account
+          </button>
+          <span className="guest-mode-note">
+            Your tasks and notes stay in this browser and won’t sync.
+          </span>
         </form>
       </main>
     );
@@ -636,15 +825,17 @@ export default function DaybookApp() {
           </div>
           <button className="sign-out-button" onClick={signOut}>
             <LogOut size={15} />
-            Sign out
+            {guestMode ? "Leave guest mode" : "Sign out"}
           </button>
           <div className="profile-row">
             <span className="profile-avatar">
-              <Feather size={15} />
+              {guestMode ? <HardDrive size={15} /> : <Feather size={15} />}
             </span>
             <span className="profile-info">
-              <strong>{accountEmail || "Your daybook"}</strong>
-              <small>A place to begin again</small>
+              <strong>{guestMode ? "Guest workspace" : accountEmail}</strong>
+              <small>
+                {guestMode ? "Saved on this device" : "Your private workspace"}
+              </small>
             </span>
             <span className="profile-status" title="Workspace ready" />
           </div>
@@ -684,6 +875,17 @@ export default function DaybookApp() {
               />
               <kbd>⌘ K</kbd>
             </label>
+            {guestMode && (
+              <button
+                className="guest-upgrade-button"
+                onClick={switchToAccountAccess}
+                aria-label="Create an account or sign in"
+                title="Create an account or sign in"
+              >
+                <UserRoundPlus size={16} />
+                <span>Sign up / in</span>
+              </button>
+            )}
             <button
               className="icon-button theme-toggle"
               onClick={() => storeTheme(theme === "light" ? "dark" : "light")}
@@ -767,7 +969,7 @@ export default function DaybookApp() {
               </div>
               <div className="daily-progress">
                 <div className="progress-copy">
-                  <span>TODAY’S PROGRESS</span>
+                  <span>YOUR TASK PROGRESS</span>
                   <strong>
                     {completion}
                     <small>%</small>
@@ -777,7 +979,7 @@ export default function DaybookApp() {
                   <span style={{ width: `${completion}%` }} />
                 </div>
                 <span className="progress-caption">
-                  {completedToday} done <span>·</span> {remaining} to go
+                  {completedCount} done <span>·</span> {remaining} to go
                 </span>
               </div>
               <span className="daily-sun" aria-hidden="true">
@@ -1151,7 +1353,10 @@ export default function DaybookApp() {
 
           <footer className="workspace-footer">
             <span>
-              <Feather size={13} /> Take what you need, leave the rest.
+              {guestMode ? <HardDrive size={13} /> : <Feather size={13} />}
+              {guestMode
+                ? "Saved on this device only."
+                : "Take what you need, leave the rest."}
             </span>
             <span>
               {notes.length} saved {notes.length === 1 ? "note" : "notes"}

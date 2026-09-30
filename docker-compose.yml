@@ -43,6 +43,7 @@ services:
         condition: service_healthy
     environment:
       DATABASE_URL: postgresql://daybook:daybook@database:5432/daybook?schema=public
+    command: ["./node_modules/.bin/prisma", "db", "push"]
     restart: "no"
 
 volumes:

@@ -16,6 +16,26 @@
   --sidebar-width: 252px;
 }
 
+html[data-theme="dark"] {
+  color-scheme: dark;
+  --paper: #1c211d;
+  --surface: #242b26;
+  --ink: #eceee5;
+  --muted: #979c91;
+  --soft-ink: #bbc0b5;
+  --line: #333b34;
+  --line-strong: #465048;
+  --forest: #a4ba9c;
+  --forest-deep: #d7e2d0;
+  --forest-soft: #344136;
+  --accent: #dc9b7d;
+}
+
+html[data-theme="dark"] body {
+  color: var(--ink);
+  background: var(--paper);
+}
+
 * {
   box-sizing: border-box;
 }
@@ -97,10 +117,19 @@ button:disabled {
   width: var(--sidebar-width);
   min-width: var(--sidebar-width);
   height: 100vh;
+  height: 100dvh;
   flex-direction: column;
+  overflow-x: hidden;
+  overflow-y: auto;
   padding: 31px 20px 17px;
   border-right: 1px solid var(--line);
   background: var(--paper);
+  overscroll-behavior: contain;
+  scrollbar-color: var(--line-strong) transparent;
+  scrollbar-width: thin;
+}
+.sidebar > * {
+  flex-shrink: 0;
 }
 .brand-lockup {
   display: inline-flex;
@@ -279,6 +308,7 @@ button:disabled {
 }
 .profile-row {
   display: flex;
+  min-width: 0;
   align-items: center;
   gap: 10px;
   padding: 15px 1px 2px;
@@ -288,6 +318,7 @@ button:disabled {
   display: grid;
   width: 31px;
   height: 31px;
+  flex: 0 0 auto;
   place-items: center;
   border-radius: 50%;
   background: var(--forest-soft);
@@ -295,21 +326,26 @@ button:disabled {
 }
 .profile-info {
   display: grid;
+  min-width: 0;
   flex: 1;
   gap: 3px;
 }
 .profile-info strong {
+  overflow-wrap: anywhere;
   color: var(--ink);
   font-size: 11px;
   font-weight: 600;
+  line-height: 1.35;
 }
 .profile-info small {
+  overflow-wrap: anywhere;
   color: var(--muted);
   font-size: 10px;
 }
 .profile-status {
   width: 7px;
   height: 7px;
+  flex: 0 0 auto;
   border-radius: 50%;
   background: #83a579;
   box-shadow: 0 0 0 3px var(--forest-soft);
@@ -426,6 +462,25 @@ button:disabled {
   border-color: var(--line);
   background: var(--surface);
   color: var(--forest);
+}
+.guest-upgrade-button {
+  display: inline-flex;
+  min-height: 33px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 9px;
+  border: 1px solid var(--line-strong);
+  border-radius: 5px;
+  background: var(--surface);
+  color: var(--forest-deep);
+  font-size: 11px;
+  cursor: pointer;
+  transition: background 0.14s ease, border-color 0.14s ease;
+}
+.guest-upgrade-button:hover {
+  border-color: #9aab96;
+  background: var(--forest-soft);
 }
 .workspace-main {
   width: min(100%, 982px);
@@ -1320,6 +1375,56 @@ button:disabled {
 .auth-mode-toggle:hover {
   text-decoration: underline;
 }
+.auth-divider {
+  display: grid;
+  width: 100%;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 12px;
+  margin: 7px 0 3px;
+  color: var(--muted);
+  font-size: 10px;
+}
+.auth-divider::before,
+.auth-divider::after {
+  height: 1px;
+  background: var(--line);
+  content: "";
+}
+.guest-mode-button {
+  display: flex;
+  width: 100%;
+  min-height: 40px;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  margin-top: 11px;
+  border: 1px solid var(--line-strong);
+  border-radius: 5px;
+  background: var(--surface);
+  color: var(--forest-deep);
+  font-size: 12px;
+  font-weight: 550;
+  cursor: pointer;
+  transition:
+    background 0.14s ease,
+    border-color 0.14s ease;
+}
+.guest-mode-button:hover {
+  border-color: #9aab96;
+  background: var(--forest-soft);
+}
+.guest-mode-button:disabled {
+  cursor: wait;
+}
+.guest-mode-note {
+  align-self: center;
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.55;
+  text-align: center;
+}
 .form-error {
   margin: 8px 0 0;
   color: var(--accent);
@@ -1432,7 +1537,7 @@ button:disabled {
     gap: 5px;
   }
   .search-box {
-    width: min(42vw, 194px);
+    width: min(38vw, 194px);
     height: 33px;
     gap: 5px;
     padding: 0 7px;
@@ -1446,6 +1551,12 @@ button:disabled {
   .theme-toggle {
     width: 30px;
     height: 30px;
+  }
+  .guest-upgrade-button {
+    min-height: 31px;
+    gap: 4px;
+    padding: 0 6px;
+    font-size: 10px;
   }
   .workspace-main {
     width: 100%;
@@ -1569,6 +1680,9 @@ button:disabled {
   .topbar {
     padding-right: 14px;
     padding-left: 14px;
+  }
+  .search-box {
+    width: 34vw;
   }
   .welcome-row {
     align-items: center;

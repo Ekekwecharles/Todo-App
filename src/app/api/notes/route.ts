@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
-import { authorizeRequest } from "@/lib/access";
+import {
+  authorizeRequest,
+  DATABASE_UNAVAILABLE_MESSAGE,
+} from "@/lib/access";
 import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
@@ -16,7 +19,7 @@ export async function GET() {
     return NextResponse.json(notes);
   } catch {
     return NextResponse.json(
-      { error: "Couldn't reach the database. Check your DATABASE_URL." },
+      { error: DATABASE_UNAVAILABLE_MESSAGE },
       { status: 503 },
     );
   }
@@ -55,7 +58,7 @@ export async function POST(request: Request) {
     return NextResponse.json(note, { status: 201 });
   } catch {
     return NextResponse.json(
-      { error: "Couldn't save your note. Check your database connection." },
+      { error: DATABASE_UNAVAILABLE_MESSAGE },
       { status: 503 },
     );
   }

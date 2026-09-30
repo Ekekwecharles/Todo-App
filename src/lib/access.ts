@@ -8,6 +8,8 @@ import { prisma } from "@/lib/prisma";
 const COOKIE_NAME = "daybook_session";
 const SESSION_DURATION = 60 * 60 * 24 * 30;
 const scryptAsync = promisify(scrypt);
+export const DATABASE_UNAVAILABLE_MESSAGE =
+  "Daybook is having trouble connecting right now. Please try again in a moment.";
 
 export async function hashPassword(password: string) {
   const salt = randomBytes(16).toString("hex");
@@ -81,7 +83,7 @@ export async function authorizeRequest(): Promise<
     return {
       user: null,
       response: NextResponse.json(
-        { error: "Couldn't reach the database. Check your DATABASE_URL." },
+        { error: DATABASE_UNAVAILABLE_MESSAGE },
         { status: 503 },
       ),
     };

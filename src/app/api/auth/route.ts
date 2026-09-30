@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import {
+  DATABASE_UNAVAILABLE_MESSAGE,
   clearSession,
   createSession,
   getCurrentUser,
@@ -19,7 +20,7 @@ export async function GET() {
     });
   } catch {
     return NextResponse.json(
-      { error: "Couldn't reach the database. Check your DATABASE_URL." },
+      { error: DATABASE_UNAVAILABLE_MESSAGE },
       { status: 503 },
     );
   }
@@ -108,7 +109,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ authenticated: true, email: user.email });
   } catch {
     return NextResponse.json(
-      { error: "Couldn't reach the database. Check your DATABASE_URL." },
+      { error: DATABASE_UNAVAILABLE_MESSAGE },
       { status: 503 },
     );
   }
